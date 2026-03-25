@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Antragshelfer">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Antragshelfer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Newsreader:ital,wght@0,300;0,400;1,300&display=swap');
+:root{--ink:#1a1a2e;--paper:#f5f0e8;--cream:#ede8dc;--accent:#c0392b;--accent2:#e67e22;--muted:#7a7060;--border:#c8c0b0;--success:#27ae60}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Newsreader',serif;background:var(--paper);color:var(--ink);min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background-image:repeating-linear-gradient(0deg,transparent,transparent 27px,rgba(180,170,155,0.12) 27px,rgba(180,170,155,0.12) 28px);pointer-events:none;z-index:0}
+.header{position:relative;z-index:1;border-bottom:3px solid var(--ink);padding:20px 32px;display:flex;align-items:baseline;gap:14px;background:var(--paper)}
+.header h1{font-family:'Syne',sans-serif;font-weight:800;font-size:1.8rem;letter-spacing:-0.04em}
+.header .sub{font-style:italic;font-size:0.95rem;color:var(--muted)}
+.badge{margin-left:auto;background:var(--accent);color:white;font-family:'Syne',sans-serif;font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:4px 8px;border-radius:2px}
+.main{position:relative;z-index:1;max-width:900px;margin:0 auto;padding:32px 24px;display:flex;flex-direction:column;gap:24px}
+.steps{display:flex;border:2px solid var(--ink);border-radius:4px;overflow:hidden;background:white}
+.step{flex:1;padding:12px;text-align:center;border-right:2px solid var(--ink)}
+.step:last-child{border-right:none}
+.step .snum{font-family:'Syne',sans-serif;font-weight:800;font-size:1.3rem;color:var(--border);line-height:1}
+.step .slbl{font-size:0.7rem;font-family:'Syne',sans-serif;letter-spacing:0.05em;color:var(--muted);margin-top:2px}
+.step.active{background:var(--ink)}.step.active .snum{color:var(--accent2)}.step.active .slbl{color:var(--paper)}
+.step.done{background:var(--cream)}.step.done .snum{color:var(--success)}
+.card{background:white;border:2px solid var(--ink);border-radius:4px;padding:24px 28px;display:none}
+.card.visible{display:block}
+.card-title{font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;letter-spacing:-0.02em;margin-bottom:18px;display:flex;align-items:center;gap:10px}
+.card-title .icon{width:26px;height:26px;background:var(--ink);color:var(--accent2);font-size:0.75rem;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;border-radius:2px;flex-shrink:0}
+.forms-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:4px}
+.form-card{border:2px solid var(--border);border-radius:4px;padding:12px 14px;cursor:pointer;transition:all .15s;background:var(--paper);position:relative}
+.form-card:hover{border-color:var(--ink);background:var(--cream)}.form-card.selected{border-color:var(--accent2);background:#fdf3e7}
+.fc-icon{font-size:1.4rem;display:block;margin-bottom:4px}
+.fc-name{font-family:'Syne',sans-serif;font-weight:700;font-size:0.8rem;color:var(--ink);word-break:break-word;line-height:1.3}
+.fc-date{font-size:0.68rem;color:var(--muted);font-style:italic;margin-top:3px}
+.fc-del{position:absolute;top:5px;right:7px;background:none;border:none;cursor:pointer;color:var(--border);font-size:0.85rem}
+.fc-del:hover{color:var(--accent)}
+.upload-area{border:2px dashed var(--border);border-radius:4px;padding:28px 20px;text-align:center;background:var(--paper);transition:border-color .2s}
+.upload-area:hover{border-color:var(--accent2)}
+.ua-icon{font-size:2rem;display:block;margin-bottom:8px}
+.ua-text{font-family:'Syne',sans-serif;font-size:0.82rem;font-weight:600;color:var(--muted);margin-bottom:4px}
+.ua-hint{font-size:0.72rem;color:var(--border);font-style:italic;margin-bottom:14px}
+.btn{font-family:'Syne',sans-serif;font-weight:700;font-size:0.78rem;letter-spacing:0.05em;text-transform:uppercase;border:2px solid var(--ink);background:white;color:var(--ink);padding:9px 16px;cursor:pointer;border-radius:3px;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{background:var(--ink);color:var(--paper)}.btn.primary{background:var(--ink);color:var(--paper)}.btn.primary:hover{background:var(--accent);border-color:var(--accent)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.vbtn{background:var(--ink);color:var(--paper)}.btn.vbtn.rec{background:var(--accent);border-color:var(--accent);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
+.file-loaded{display:flex;align-items:center;gap:10px;padding:12px 14px;background:#f0f8f0;border:2px solid var(--success);border-radius:4px;margin-top:10px;font-size:.85rem;font-family:'Syne',sans-serif}
+.fl-name{flex:1;font-weight:600;word-break:break-all}
+.fl-del{background:none;border:none;cursor:pointer;color:var(--accent);font-weight:700;font-size:1rem}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.col-label{font-family:'Syne',sans-serif;font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px}
+textarea{width:100%;min-height:110px;border:2px solid var(--border);border-radius:4px;padding:12px 14px;font-family:'Newsreader',serif;font-size:.95rem;color:var(--ink);background:var(--paper);resize:vertical;line-height:1.6}
+textarea:focus{outline:none;border-color:var(--ink)}
+textarea::placeholder{color:var(--border);font-style:italic}
+.progress-wrap{border:2px solid var(--ink);border-radius:4px;overflow:hidden;height:8px;background:var(--cream);margin-bottom:8px}
+.progress-bar{height:100%;background:var(--accent2);transition:width .4s;width:0%}
+.log-msg{font-size:.85rem;color:var(--muted);font-style:italic;min-height:20px}
+.log-msg.err{color:var(--accent);font-style:normal}.log-msg.ok{color:var(--success);font-style:normal}
+.result-box{border:2px solid var(--success);border-radius:4px;padding:20px;background:#f0f8f0;display:none;margin-top:16px}
+.result-box.visible{display:block}
+.result-title{font-family:'Syne',sans-serif;font-weight:700;font-size:.85rem;color:var(--success);letter-spacing:.05em;text-transform:uppercase;margin-bottom:10px}
+.field-list{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.field-item{display:flex;gap:10px;font-size:.85rem}
+.field-item .fl{font-family:'Syne',sans-serif;font-weight:600;font-size:.73rem;color:var(--muted);min-width:150px;text-transform:uppercase}
+.email-panel{display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
+.email-panel.visible{display:block}
+.email-input{width:100%;border:2px solid var(--border);border-radius:3px;padding:8px 12px;font-family:'Newsreader',serif;font-size:.9rem;background:var(--paper);color:var(--ink);margin-bottom:10px}
+.email-input:focus{outline:none;border-color:var(--ink)}
+.ejsconfig{display:none;padding:14px;background:var(--cream);border-radius:4px;border:1px solid var(--border);margin-top:10px}
+.ejsconfig.visible{display:block}
+hr.div{border:none;border-top:1px solid var(--border);margin:16px 0}
+.hint{font-size:.78rem;color:var(--muted);font-style:italic;line-height:1.6}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pdf-preview{border:2px solid var(--border);border-radius:4px;overflow:hidden;background:#888;text-align:center;margin-top:12px;max-height:380px;overflow-y:auto;display:none}
+.pdf-preview canvas{display:block;margin:0 auto;max-width:100%}
+.sel-ind{display:none;align-items:center;gap:8px;padding:9px 12px;background:#fdf3e7;border:2px solid var(--accent2);border-radius:4px;margin-top:10px;font-family:'Syne',sans-serif;font-size:.8rem;font-weight:600}
+.sel-ind.visible{display:flex}
+@media(max-width:600px){.header{padding:14px 16px;flex-wrap:wrap}.main{padding:16px}.row2{grid-template-columns:1fr}.card{padding:16px}}
+</style>
+</head>
+<body>
+<header class="header">
+  <h1>Antragshelfer</h1>
+  <span class="sub">PDF &amp; Excel automatisch ausfüllen</span>
+  <span class="badge">KI</span>
+</header>
+<main class="main">
+  <div class="steps">
+    <div class="step active" id="si1"><div class="snum">1</div><div class="slbl">Antrag</div></div>
+    <div class="step" id="si2"><div class="snum">2</div><div class="slbl">Infos</div></div>
+    <div class="step" id="si3"><div class="snum">3</div><div class="slbl">Ausfüllen</div></div>
+    <div class="step" id="si4"><div class="snum">4</div><div class="slbl">Download</div></div>
+  </div>
+
+  <div class="card visible" id="card1">
+    <div class="card-title"><div class="icon">1</div>Antrag auswählen</div>
+    <div class="col-label">Gespeicherte Anträge</div>
+    <div id="savedList"><p class="hint">Noch keine gespeichert.</p></div>
+    <div class="sel-ind" id="selInd">
+      <span>&#10003;</span><span id="selName"></span>
+      <button class="btn primary" style="margin-left:auto;padding:6px 12px" id="btnWeiter">Weiter &#8594;</button>
+    </div>
+    <hr class="div">
+    <div class="col-label">Neuen Antrag hochladen</div>
+    <div class="upload-area">
+      <span class="ua-icon">&#128196;</span>
+      <div class="ua-text">PDF oder Excel-Datei</div>
+      <div class="ua-hint">Wird dauerhaft gespeichert</div>
+      <button class="btn primary" id="btnPickAntrag">&#128194; Datei ausw&#228;hlen</button>
+    </div>
+    <input type="file" id="inputAntrag" accept=".pdf,.xlsx,.xls" style="display:none">
+    <div id="antragLoaded" style="display:none"></div>
+    <div class="pdf-preview" id="pdfPrev"></div>
+  </div>
+
+  <div class="card" id="card2">
+    <div class="card-title"><div class="icon">2</div>Informationen angeben</div>
+    <div class="row2">
+      <div>
+        <div class="col-label">Quelldokument (optional)</div>
+        <div class="upload-area" style="padding:18px">
+          <span class="ua-icon" style="font-size:1.4rem">&#128206;</span>
+          <div class="ua-text">Beschreibung, Einladung&#8230;</div>
+          <div class="ua-hint">PDF, Word, Excel, TXT</div>
+          <button class="btn" style="font-size:.7rem;padding:7px 12px" id="btnPickQuelle">&#128194; Ausw&#228;hlen</button>
+        </div>
+        <input type="file" id="inputQuelle" accept=".pdf,.txt,.docx,.xlsx,.xls,.doc" style="display:none">
+        <div id="quelleLoaded" style="display:none"></div>
+      </div>
+      <div>
+        <div class="col-label">Anweisungen</div>
+        <div class="btn-row" style="margin-bottom:8px">
+          <button class="btn vbtn" id="voiceBtn">&#127908; Sprache</button>
+          <span class="hint" id="voiceSt">Klicken zum Diktieren</span>
+        </div>
+        <textarea id="instructions" placeholder="z.B.: Name: Max Mustermann, Datum: heute&#8230;"></textarea>
+      </div>
+    </div>
+    <hr class="div">
+    <div class="btn-row">
+      <button class="btn" id="btnBack1">&#8592; Zur&#252;ck</button>
+      <button class="btn primary" id="btnNext2">Weiter &#8594;</button>
+    </div>
+  </div>
+
+  <div class="card" id="card3">
+    <div class="card-title"><div class="icon">3</div>Antrag ausf&#252;llen lassen</div>
+    <p class="hint" style="margin-bottom:16px">Claude analysiert deinen Antrag und f&#252;llt alle Felder aus.</p>
+    <button class="btn primary" id="fillBtn">&#10024; Jetzt ausf&#252;llen</button>
+    <div style="margin-top:14px">
+      <div class="progress-wrap"><div class="progress-bar" id="progBar"></div></div>
+      <div class="log-msg" id="logMsg">Bereit.</div>
+    </div>
+    <div class="result-box" id="resultBox">
+      <div class="result-title">&#10003; Ausgef&#252;llt</div>
+      <div class="field-list" id="fieldList"></div>
+      <div class="btn-row">
+        <button class="btn primary" id="btnDL">&#11015; Herunterladen</button>
+        <button class="btn" id="btnEmail">&#9993; Per E-Mail</button>
+        <button class="btn" id="btnNew">Neuer Antrag</button>
+      </div>
+      <div class="email-panel" id="emailPanel">
+        <div class="col-label" style="margin-bottom:10px">E-Mail senden</div>
+        <div class="row2" style="margin-bottom:10px">
+          <div><input class="email-input" type="email" id="emailTo" placeholder="empfaenger@schule.de"></div>
+          <div><input class="email-input" type="text" id="emailSubj" placeholder="Betreff"></div>
+        </div>
+        <textarea id="emailBody" style="min-height:80px;margin-bottom:10px">Sehr geehrte Damen und Herren,
+
+anbei &#252;bersende ich den ausgef&#252;llten Antrag.
+
+Mit freundlichen Gr&#252;&#223;en</textarea>
+        <div class="btn-row">
+          <button class="btn primary" id="btnMailApp">&#128236; Mail-App &#246;ffnen</button>
+          <button class="btn" id="btnSendEJS">&#128640; Direkt senden</button>
+          <span class="hint" id="emailSt"></span>
+        </div>
+        <p class="hint" style="margin-top:8px">
+          <strong>Mail-App:</strong> PDF wird geladen, Mail-App &#246;ffnet sich.<br>
+          <strong>Direkt senden:</strong> Ben&#246;tigt <a href="https://emailjs.com" target="_blank" style="color:var(--accent2)">EmailJS-Account</a>.
+        </p>
+        <div class="ejsconfig" id="ejsConfig">
+          <div class="col-label" style="margin-bottom:8px">EmailJS Zugangsdaten</div>
+          <input id="ejsPK" placeholder="Public Key" style="width:100%;border:1px solid var(--border);border-radius:3px;padding:7px 10px;font-size:.82rem;margin-bottom:6px"><br>
+          <input id="ejsSI" placeholder="Service ID" style="width:100%;border:1px solid var(--border);border-radius:3px;padding:7px 10px;font-size:.82rem;margin-bottom:6px"><br>
+          <input id="ejsTI" placeholder="Template ID" style="width:100%;border:1px solid var(--border);border-radius:3px;padding:7px 10px;font-size:.82rem;margin-bottom:8px"><br>
+          <div class="btn-row">
+            <button class="btn primary" style="padding:7px 12px;font-size:.72rem" id="btnSaveEJS">Speichern &amp; senden</button>
+            <button class="btn" style="padding:7px 12px;font-size:.72rem" id="btnCancelEJS">Abbrechen</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <hr class="div">
+    <button class="btn" id="btnBack2">&#8592; Zur&#252;ck</button>
+  </div>
+
+  <div class="card" id="card4">
+    <div class="card-title"><div class="icon">4</div>Fertig!</div>
+    <p style="font-size:1rem;line-height:1.7;margin-bottom:16px">Dein Antrag wurde heruntergeladen.</p>
+    <div class="btn-row">
+      <button class="btn primary" id="btnDL2">&#11015; Nochmal laden</button>
+      <button class="btn" id="btnReset">Neuer Antrag</button>
+    </div>
+  </div>
+</main>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+var antragFile=null, quelleFile=null, filledPdfBytes=null, filledXlsxBytes=null, selectedFormId=null, isRecording=false, recognitionObj=null;
+
+function goTo(n){
+  [1,2,3,4].forEach(function(s){
+    document.getElementById('card'+s).classList.toggle('visible',s===n);
+    var ind=document.getElementById('si'+s);
+    ind.classList.remove('active','done');
+    if(s===n) ind.classList.add('active');
+    else if(s<n) ind.classList.add('done');
+  });
+}
+
+function setLog(msg,cls){var el=document.getElementById('logMsg');el.textContent=msg;el.className='log-msg'+(cls?' '+cls:'');}
+function setProgress(p){document.getElementById('progBar').style.width=p+'%';}
+
+// ---- Buttons ----
+document.getElementById('btnPickAntrag').addEventListener('click',function(){document.getElementById('inputAntrag').click();});
+document.getElementById('btnPickQuelle').addEventListener('click',function(){document.getElementById('inputQuelle').click();});
+document.getElementById('btnWeiter').addEventListener('click',function(){goTo(2);});
+document.getElementById('btnBack1').addEventListener('click',function(){goTo(1);});
+document.getElementById('btnNext2').addEventListener('click',function(){goTo(3);});
+document.getElementById('btnBack2').addEventListener('click',function(){goTo(2);});
+document.getElementById('fillBtn').addEventListener('click',function(){fillForm();});
+document.getElementById('btnDL').addEventListener('click',function(){doDownload();});
+document.getElementById('btnDL2').addEventListener('click',function(){doDownload();});
+document.getElementById('btnNew').addEventListener('click',function(){goTo(1);});
+document.getElementById('btnReset').addEventListener('click',function(){resetApp();});
+document.getElementById('btnEmail').addEventListener('click',function(){document.getElementById('emailPanel').classList.toggle('visible');});
+document.getElementById('btnMailApp').addEventListener('click',function(){sendMailApp();});
+document.getElementById('btnSendEJS').addEventListener('click',function(){sendEmailJS();});
+document.getElementById('btnSaveEJS').addEventListener('click',function(){saveEJS();});
+document.getElementById('btnCancelEJS').addEventListener('click',function(){document.getElementById('ejsConfig').classList.remove('visible');});
+document.getElementById('voiceBtn').addEventListener('click',function(){toggleVoice();});
+
+document.getElementById('inputAntrag').addEventListener('change',function(){
+  if(this.files&&this.files[0]) handleAntrag(this.files[0]);
+});
+document.getElementById('inputQuelle').addEventListener('change',function(){
+  if(this.files&&this.files[0]) handleQuelle(this.files[0]);
+});
+
+// ---- Handle files ----
+function handleAntrag(file){
+  var n=file.name.toLowerCase();
+  if(!n.endsWith('.pdf')&&!n.endsWith('.xlsx')&&!n.endsWith('.xls')){alert('Bitte PDF oder Excel wählen.');return;}
+  antragFile=file;
+  file.arrayBuffer().then(function(buf){
+    dbSave(file.name,buf).then(function(){renderSaved();});
+  }).catch(function(){});
+  showLoaded('antragLoaded',file.name,function(){
+    antragFile=null;
+    document.getElementById('pdfPrev').style.display='none';
+    document.getElementById('pdfPrev').innerHTML='';
+    document.getElementById('antragLoaded').style.display='none';
+  });
+  if(n.endsWith('.pdf')) renderPDFPreview(file);
+  setTimeout(function(){goTo(2);},700);
+}
+
+function handleQuelle(file){
+  quelleFile=file;
+  showLoaded('quelleLoaded',file.name,function(){
+    quelleFile=null;
+    document.getElementById('quelleLoaded').style.display='none';
+  });
+}
+
+function showLoaded(cid,fname,onDel){
+  var el=document.getElementById(cid);
+  el.style.display='block';
+  el.innerHTML='';
+  var div=document.createElement('div');
+  div.className='file-loaded';
+  var chk=document.createElement('span');chk.textContent='✓';
+  var nm=document.createElement('span');nm.className='fl-name';nm.textContent=fname;
+  var btn=document.createElement('button');btn.className='fl-del';btn.textContent='✕';
+  btn.addEventListener('click',function(){onDel();});
+  div.appendChild(chk);div.appendChild(nm);div.appendChild(btn);
+  el.appendChild(div);
+}
+
+async function renderPDFPreview(file){
+  var c=document.getElementById('pdfPrev');
+  c.style.display='block';
+  c.innerHTML='<p style="color:#ccc;padding:12px;font-size:.8rem">Lade…</p>';
+  try{
+    var ab=await file.arrayBuffer();
+    var pdf=await pdfjsLib.getDocument({data:ab}).promise;
+    c.innerHTML='';
+    for(var i=1;i<=Math.min(pdf.numPages,2);i++){
+      var page=await pdf.getPage(i);
+      var vp=page.getViewport({scale:1.1});
+      var canvas=document.createElement('canvas');
+      canvas.width=vp.width;canvas.height=vp.height;
+      await page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;
+      c.appendChild(canvas);
+    }
+  }catch(e){c.innerHTML='<p style="color:#ccc;padding:12px;font-size:.8rem">Vorschau nicht verfügbar.</p>';}
+}
+
+// ---- Voice ----
+function toggleVoice(){
+  if(!('webkitSpeechRecognition' in window)&&!('SpeechRecognition' in window)){alert('Spracheingabe nur in Chrome.');return;}
+  if(isRecording){recognitionObj.stop();return;}
+  recognitionObj=new (window.SpeechRecognition||window.webkitSpeechRecognition)();
+  recognitionObj.lang='de-DE';recognitionObj.continuous=true;recognitionObj.interimResults=true;
+  var final=document.getElementById('instructions').value;
+  recognitionObj.onstart=function(){
+    isRecording=true;
+    document.getElementById('voiceBtn').classList.add('rec');
+    document.getElementById('voiceBtn').textContent='⏹ Stop';
+    document.getElementById('voiceSt').textContent='Aufnahme läuft…';
+  };
+  recognitionObj.onresult=function(e){
+    var interim='';
+    for(var i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal) final+=e.results[i][0].transcript+' ';
+      else interim+=e.results[i][0].transcript;
+    }
+    document.getElementById('instructions').value=final+interim;
+  };
+  recognitionObj.onend=function(){
+    isRecording=false;
+    document.getElementById('voiceBtn').classList.remove('rec');
+    document.getElementById('voiceBtn').textContent='🎤 Sprache';
+    document.getElementById('voiceSt').textContent='Fertig.';
+    document.getElementById('instructions').value=final.trim();
+  };
+  recognitionObj.start();
+}
+
+// ---- Fill ----
+function fillForm(){
+  if(!antragFile){alert('Kein Antrag gewählt.');goTo(1);return;}
+  var n=antragFile.name.toLowerCase();
+  if(n.endsWith('.xlsx')||n.endsWith('.xls')) fillExcel();
+  else fillPDF();
+}
+
+async function fillPDF(){
+  var btn=document.getElementById('fillBtn');btn.disabled=true;
+  setLog('Rendere Seiten…');setProgress(10);
+  try{
+    var images=await pdfToImages(antragFile);
+    var qt=await readQuelle();
+    var instr=document.getElementById('instructions').value.trim();
+    var sys='Du bist Experte für Formularausfüllung. Analysiere alle Seiten des PDF-Formulars.\nAntworte NUR mit JSON (kein Markdown):\n{"fields":[{"label":"Name","value":"Wert","type":"text","page":1}],"summary":"Zusammenfassung"}\nLeere value wenn Info fehlt. Checkboxen: "true"/"false".';
+    var msgs=[];
+    for(var i=0;i<images.length;i++){
+      msgs.push({type:'text',text:'=== Seite '+(i+1)+' ==='});
+      msgs.push({type:'image',source:{type:'base64',media_type:'image/png',data:images[i]}});
+    }
+    var txt='Fülle dieses '+images.length+'-seitige Formular aus.';
+    if(qt) txt+='\n\nQuelldokument:\n'+qt.substring(0,3000);
+    if(instr) txt+='\n\nAnweisungen:\n'+instr;
+    msgs.push({type:'text',text:txt});
+    setLog('Claude analysiert…');setProgress(50);
+    var res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4000,system:sys,messages:[{role:'user',content:msgs}]})});
+    setProgress(75);
+    var data=await res.json();
+    if(!res.ok) throw new Error(data.error&&data.error.message||'API Fehler');
+    var raw=data.content.map(function(b){return b.text||'';}).join('');
+    var parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    setLog('Schreibe ins PDF…');setProgress(85);
+    var pdfBytes=await antragFile.arrayBuffer();
+    var pdfDoc=await PDFLib.PDFDocument.load(pdfBytes);
+    var count=0;
+    try{
+      var form=pdfDoc.getForm();
+      var pdfFields=form.getFields();
+      if(pdfFields.length>0){
+        parsed.fields.forEach(function(cf){
+          if(!cf.value) return;
+          pdfFields.forEach(function(pf){
+            if(nameMatch(pf.getName(),cf.label)){
+              try{
+                if(pf.constructor.name==='PDFTextField'){pf.setText(String(cf.value));count++;}
+                else if(pf.constructor.name==='PDFCheckBox'){cf.value==='true'?pf.check():pf.uncheck();count++;}
+              }catch(e){}
+            }
+          });
+        });
+      }
+    }catch(e){}
+    if(count===0){
+      var font=await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+      var sp=pdfDoc.addPage([595,842]);
+      var h=sp.getSize().height;
+      sp.drawText('Ausgefüllte Felder',{x:40,y:h-50,size:14,font:font,color:PDFLib.rgb(0.1,0.1,0.1)});
+      var y=h-80;
+      parsed.fields.forEach(function(f){
+        if(!f.value||y<50) return;
+        sp.drawText(f.label+': '+String(f.value),{x:40,y:y,size:9,font:font,color:PDFLib.rgb(0.1,0.1,0.5)});
+        y-=16;count++;
+      });
+    }
+    filledPdfBytes=await pdfDoc.save();
+    setProgress(100);
+    showResults(parsed.fields);
+  }catch(e){setLog('Fehler: '+e.message,'err');setProgress(0);}
+  btn.disabled=false;
+}
+
+async function fillExcel(){
+  var btn=document.getElementById('fillBtn');btn.disabled=true;
+  setLog('Lade Excel…');setProgress(10);
+  try{
+    if(!window.XLSX) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+    var ab=await antragFile.arrayBuffer();
+    var wb=XLSX.read(ab,{type:'array'});
+    var excelText='';
+    wb.SheetNames.forEach(function(sn){excelText+='=== '+sn+' ===\n'+XLSX.utils.sheet_to_csv(wb.Sheets[sn])+'\n';});
+    var qt=await readQuelle();
+    var instr=document.getElementById('instructions').value.trim();
+    var txt='Excel-Formular:\n'+excelText.substring(0,4000);
+    if(qt) txt+='\n\nQuelle:\n'+qt.substring(0,2000);
+    if(instr) txt+='\n\nAnweisungen:\n'+instr;
+    setLog('Claude analysiert…');setProgress(50);
+    var res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,system:'Analysiere das Excel-Formular. Antworte NUR mit JSON: {"fills":[{"sheet":"Blatt","cell":"B2","label":"Feld","value":"Wert"}],"summary":"Text"}',messages:[{role:'user',content:txt}]})});
+    setProgress(75);
+    var data=await res.json();
+    if(!res.ok) throw new Error(data.error&&data.error.message||'API Fehler');
+    var raw=data.content.map(function(b){return b.text||'';}).join('');
+    var parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    setLog('Schreibe ins Excel…');setProgress(85);
+    parsed.fills.forEach(function(f){
+      if(!f.value) return;
+      var sheet=wb.Sheets[f.sheet]||wb.Sheets[wb.SheetNames[0]];
+      if(sheet) sheet[f.cell]={t:'s',v:String(f.value),w:String(f.value)};
+    });
+    filledXlsxBytes=new Uint8Array(XLSX.write(wb,{bookType:'xlsx',type:'array'}));
+    setProgress(100);
+    showResults(parsed.fills.map(function(f){return {label:f.label||f.cell,value:f.value};}));
+  }catch(e){setLog('Fehler: '+e.message,'err');setProgress(0);}
+  btn.disabled=false;
+}
+
+function showResults(fields){
+  var list=document.getElementById('fieldList');list.innerHTML='';
+  var shown=0;
+  fields.forEach(function(f){
+    if(!f.value||shown>=20) return;
+    var d=document.createElement('div');d.className='field-item';
+    var l=document.createElement('span');l.className='fl';l.textContent=f.label;
+    var v=document.createElement('span');v.textContent=f.value;
+    d.appendChild(l);d.appendChild(v);list.appendChild(d);shown++;
+  });
+  document.getElementById('resultBox').classList.add('visible');
+  setLog(shown+' Felder ausgefüllt.','ok');
+  if(antragFile) document.getElementById('emailSubj').value=antragFile.name.replace(/\.[^.]+$/,'');
+}
+
+// ---- Download ----
+function doDownload(){
+  if(filledXlsxBytes){
+    dlBlob(new Blob([filledXlsxBytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),'ausgefuellt_'+(antragFile?antragFile.name:'antrag.xlsx'));
+  }else if(filledPdfBytes){
+    dlBlob(new Blob([filledPdfBytes],{type:'application/pdf'}),'ausgefuellt_'+(antragFile?antragFile.name:'antrag.pdf'));
+  }
+  setTimeout(function(){goTo(4);},400);
+}
+function dlBlob(blob,name){
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;a.download=name;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ---- Email ----
+function sendMailApp(){
+  if(!filledPdfBytes&&!filledXlsxBytes) return;
+  doDownload();
+  setTimeout(function(){
+    var to=document.getElementById('emailTo').value;
+    var s=encodeURIComponent(document.getElementById('emailSubj').value);
+    var b=encodeURIComponent(document.getElementById('emailBody').value);
+    window.location.href='mailto:'+to+'?subject='+s+'&body='+b;
+    document.getElementById('emailSt').textContent='Mail-App geöffnet.';
+  },900);
+}
+async function sendEmailJS(){
+  var pk=localStorage.getItem('ejs_pk'),si=localStorage.getItem('ejs_si'),ti=localStorage.getItem('ejs_ti');
+  if(!pk||!si||!ti){document.getElementById('ejsConfig').classList.add('visible');return;}
+  await doSendEJS(pk,si,ti);
+}
+async function saveEJS(){
+  var pk=document.getElementById('ejsPK').value.trim();
+  var si=document.getElementById('ejsSI').value.trim();
+  var ti=document.getElementById('ejsTI').value.trim();
+  if(!pk||!si||!ti){alert('Alle Felder ausfüllen.');return;}
+  localStorage.setItem('ejs_pk',pk);localStorage.setItem('ejs_si',si);localStorage.setItem('ejs_ti',ti);
+  document.getElementById('ejsConfig').classList.remove('visible');
+  await doSendEJS(pk,si,ti);
+}
+async function doSendEJS(pk,si,ti){
+  document.getElementById('emailSt').textContent='Sende…';
+  try{
+    if(!window.emailjs){await loadScript('https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js');emailjs.init(pk);}
+    var bytes=filledPdfBytes||filledXlsxBytes;
+    var b64=btoa(String.fromCharCode.apply(null,new Uint8Array(bytes)));
+    await emailjs.send(si,ti,{to_email:document.getElementById('emailTo').value,subject:document.getElementById('emailSubj').value,message:document.getElementById('emailBody').value,attachment_name:'ausgefuellt_'+(antragFile?antragFile.name:'antrag'),attachment_data:b64});
+    var st=document.getElementById('emailSt');st.textContent='✓ Gesendet!';st.style.color='var(--success)';
+  }catch(e){var st=document.getElementById('emailSt');st.textContent='Fehler: '+(e.text||e.message);st.style.color='var(--accent)';}
+}
+
+// ---- Helpers ----
+async function pdfToImages(file){
+  var ab=await file.arrayBuffer();
+  var pdf=await pdfjsLib.getDocument({data:ab}).promise;
+  var imgs=[];var max=Math.min(pdf.numPages,10);
+  for(var i=1;i<=max;i++){
+    setLog('Rendere Seite '+i+' von '+max+'…');
+    var page=await pdf.getPage(i);
+    var vp=page.getViewport({scale:1.8});
+    var canvas=document.createElement('canvas');canvas.width=vp.width;canvas.height=vp.height;
+    await page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;
+    imgs.push(canvas.toDataURL('image/png').split(',')[1]);
+  }
+  return imgs;
+}
+async function readQuelle(){
+  if(!quelleFile) return '';
+  var n=quelleFile.name.toLowerCase();
+  try{
+    if(n.endsWith('.pdf')) return await extractPDFText(quelleFile);
+    if(n.endsWith('.xlsx')||n.endsWith('.xls')) return await extractExcelText(quelleFile);
+    if(n.endsWith('.docx')||n.endsWith('.doc')) return await extractWordText(quelleFile);
+    return await quelleFile.text();
+  }catch(e){return '';}
+}
+async function extractPDFText(file){
+  var ab=await file.arrayBuffer();var pdf=await pdfjsLib.getDocument({data:ab}).promise;var text='';
+  for(var i=1;i<=pdf.numPages;i++){var page=await pdf.getPage(i);var c=await page.getTextContent();text+=c.items.map(function(it){return it.str;}).join(' ')+'\n';}
+  return text;
+}
+async function extractExcelText(file){
+  if(!window.XLSX) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+  var ab=await file.arrayBuffer();var wb=XLSX.read(ab,{type:'array'});var t='';
+  wb.SheetNames.forEach(function(sn){t+=sn+':\n'+XLSX.utils.sheet_to_csv(wb.Sheets[sn])+'\n';});return t;
+}
+async function extractWordText(file){
+  if(!window.mammoth) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js');
+  var ab=await file.arrayBuffer();var r=await mammoth.extractRawText({arrayBuffer:ab});return r.value;
+}
+function loadScript(src){return new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
+function nameMatch(a,b){
+  a=a.toLowerCase();b=b.toLowerCase();
+  if(a.includes(b)||b.includes(a)) return true;
+  function bg(s){var set=new Set();for(var i=0;i<s.length-1;i++)set.add(s.slice(i,i+2));return set;}
+  var sa=bg(a),sb=bg(b);var inter=0;sa.forEach(function(g){if(sb.has(g))inter++;});
+  return inter/(sa.size+sb.size-inter)>0.4;
+}
+
+function resetApp(){
+  antragFile=null;quelleFile=null;filledPdfBytes=null;filledXlsxBytes=null;selectedFormId=null;
+  ['antragLoaded','quelleLoaded'].forEach(function(id){var el=document.getElementById(id);el.style.display='none';el.innerHTML='';});
+  document.getElementById('pdfPrev').style.display='none';document.getElementById('pdfPrev').innerHTML='';
+  document.getElementById('instructions').value='';
+  document.getElementById('resultBox').classList.remove('visible');
+  document.getElementById('fieldList').innerHTML='';
+  document.getElementById('progBar').style.width='0%';
+  document.getElementById('logMsg').textContent='Bereit.';
+  document.getElementById('logMsg').className='log-msg';
+  document.getElementById('emailPanel').classList.remove('visible');
+  document.getElementById('selInd').classList.remove('visible');
+  document.getElementById('inputAntrag').value='';
+  document.getElementById('inputQuelle').value='';
+  renderSaved();goTo(1);
+}
+
+// ---- IndexedDB ----
+var DB_NAME='AntragshelferDB',DB_VER=1,STORE='antraege',db=null;
+function openDB(){
+  return new Promise(function(res,rej){
+    var req=indexedDB.open(DB_NAME,DB_VER);
+    req.onupgradeneeded=function(e){if(!e.target.result.objectStoreNames.contains(STORE))e.target.result.createObjectStore(STORE,{keyPath:'id',autoIncrement:true});};
+    req.onsuccess=function(e){db=e.target.result;res(db);};
+    req.onerror=function(e){rej(e.target.error);};
+  });
+}
+function dbSave(name,data){
+  return openDB().then(function(){
+    return new Promise(function(res,rej){
+      var req=db.transaction(STORE,'readwrite').objectStore(STORE).add({name:name,data:data,savedAt:new Date().toLocaleDateString('de-DE')});
+      req.onsuccess=function(){res();};req.onerror=function(e){rej(e.target.error);};
+    });
+  });
+}
+function dbGetAll(){
+  return openDB().then(function(){
+    return new Promise(function(res,rej){
+      var req=db.transaction(STORE,'readonly').objectStore(STORE).getAll();
+      req.onsuccess=function(){res(req.result);};req.onerror=function(e){rej(e.target.error);};
+    });
+  });
+}
+function dbDelete(id){
+  return openDB().then(function(){
+    return new Promise(function(res,rej){
+      var req=db.transaction(STORE,'readwrite').objectStore(STORE).delete(id);
+      req.onsuccess=res;req.onerror=function(e){rej(e.target.error);};
+    });
+  });
+}
+
+function renderSaved(){
+  dbGetAll().then(function(forms){
+    var container=document.getElementById('savedList');
+    if(!forms||forms.length===0){container.innerHTML='<p class="hint">Noch keine Anträge gespeichert.</p>';return;}
+    var grid=document.createElement('div');grid.className='forms-grid';
+    forms.forEach(function(form){
+      var card=document.createElement('div');
+      card.className='form-card'+(form.id===selectedFormId?' selected':'');
+      var icon=document.createElement('span');icon.className='fc-icon';icon.textContent=form.name.toLowerCase().endsWith('.pdf')?'📄':'📊';
+      var nm=document.createElement('div');nm.className='fc-name';nm.textContent=form.name;
+      var dt=document.createElement('div');dt.className='fc-date';dt.textContent='Gespeichert: '+form.savedAt;
+      var del=document.createElement('button');del.className='fc-del';del.textContent='✕';
+      del.addEventListener('click',function(e){
+        e.stopPropagation();
+        if(confirm('Löschen?')) dbDelete(form.id).then(function(){
+          if(selectedFormId===form.id){selectedFormId=null;antragFile=null;document.getElementById('selInd').classList.remove('visible');}
+          renderSaved();
+        });
+      });
+      card.appendChild(del);card.appendChild(icon);card.appendChild(nm);card.appendChild(dt);
+      card.addEventListener('click',function(){
+        selectedFormId=form.id;
+        document.querySelectorAll('.form-card').forEach(function(c){c.classList.remove('selected');});
+        card.classList.add('selected');
+        var blob=new Blob([form.data],{type:'application/octet-stream'});
+        antragFile=new File([blob],form.name);
+        document.getElementById('selInd').classList.add('visible');
+        document.getElementById('selName').textContent=form.name;
+        if(form.name.toLowerCase().endsWith('.pdf')) renderPDFPreview(antragFile);
+        showLoaded('antragLoaded',form.name,function(){
+          antragFile=null;selectedFormId=null;
+          document.getElementById('selInd').classList.remove('visible');
+          document.getElementById('antragLoaded').style.display='none';
+          document.getElementById('pdfPrev').style.display='none';
+        });
+      });
+      grid.appendChild(card);
+    });
+    container.innerHTML='';container.appendChild(grid);
+  }).catch(function(){});
+}
+
+document.addEventListener('DOMContentLoaded',function(){renderSaved();});
+</script>
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(e){console.log('SW:',e);});});}
+</script>
+</body>
+</html>
